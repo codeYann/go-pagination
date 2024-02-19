@@ -2,76 +2,58 @@
 package requests
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // HTTPRequest is a struct which deals with request operations.
 type HTTPRequest struct {
-	BaseURL string
-	Method  string
-}
-
-// NewHTTPRequest is factory builder.
-func NewHTTPRequest(baseURL string, method string) *HTTPRequest {
-	return &HTTPRequest{BaseURL: baseURL, Method: method}
-}
-
-// GetBaseURL returns base url
-func (r HTTPRequest) GetBaseURL() string {
-	return r.BaseURL
-}
-
-// GetMethod returns a method used in HTTPRequest
-func (r HTTPRequest) GetMethod() string {
-	return r.Method
-}
-
-func (r HTTPRequest) setURL(url string) (string, error) {
-	if r.GetBaseURL() == "" {
-		return "", fmt.Errorf("base url not set")
-	}
-
-	if url == "" {
-		return "", fmt.Errorf("url not set")
-	}
-
-	// if  baseURL does not end with a slash and url does not start with a slash
-	if r.GetBaseURL()[len(r.GetBaseURL())-1:] != "/" && url[:1] != "/" {
-		return fmt.Sprintf("%s/%s", r.GetBaseURL(), url), nil
-	}
-
-	return fmt.Sprintf("%s%s", r.GetBaseURL(), url), nil
+	BaseURL    string
+	Method     string
+	MaxTimeout time.Duration
 }
 
 // Request makes an HTTP request.
 func (r HTTPRequest) Request(url string) ([]byte, error) {
-	finalURL, err := r.setURL(url)
+	finalURL := fmt.Sprintf("%s%s", r.BaseURL, url)
+	req, err := http.NewRequest(r.Method, finalURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	client := http.Client{}
-	response := make(chan []byte)
+	ctx, cancel := context.WithTimeout(context.Background(), r.MaxTimeout)
+	defer cancel()
 
-	go func() {
-		request, err := client.Get(finalURL)
-		if err != nil {
-			panic(err)
-		}
+	req = req.WithContext(ctx)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
 
-		data, err := io.ReadAll(request.Body)
-		if err != nil {
-			panic(err)
-		}
+	defer res.Body.Close()
 
-		response <- data
-		request.Body.Close()
-	}()
-
-	data := <-response
-	close(response)
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
 
 	return data, nil
+}
+
+// MakeRequest makes a request
+func (r HTTPRequest) MakeRequest(ctx context.Context, url string) ([]byte, error) {
+	data, err := r.Request(url)
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		return data, nil
+	}
 }
