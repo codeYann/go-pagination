@@ -21,7 +21,8 @@ func main() {
 	}
 
 	url := "trades"
-	ctx := context.Background()
+
+	ctx := context.TODO()
 
 	data, err := request.MakeRequest(ctx, url)
 	if err != nil {
