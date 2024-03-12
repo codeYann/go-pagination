@@ -16,8 +16,8 @@ type HTTPRequest struct {
 	MaxTimeout time.Duration
 }
 
-// Request makes an HTTP request.
-func (r HTTPRequest) Request(url string) ([]byte, error) {
+// request makes an HTTP request.
+func (r HTTPRequest) request(url string) ([]byte, error) {
 	finalURL := fmt.Sprintf("%s%s", r.BaseURL, url)
 	req, err := http.NewRequest(r.Method, finalURL, nil)
 	if err != nil {
@@ -45,7 +45,7 @@ func (r HTTPRequest) Request(url string) ([]byte, error) {
 
 // MakeRequest makes a request
 func (r HTTPRequest) MakeRequest(ctx context.Context, url string) ([]byte, error) {
-	data, err := r.Request(url)
+	data, err := r.request(url)
 	if err != nil {
 		return nil, err
 	}
