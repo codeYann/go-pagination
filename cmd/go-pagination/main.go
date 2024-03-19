@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"runtime"
@@ -11,24 +12,39 @@ import (
 	"github.com/codeYann/go-pagination/internal/requests"
 )
 
+type data struct {
+	Amount float32 `json:"amount"`
+	Date   int64   `json:"date"`
+	Price  float64 `json:"price"`
+	Tid    int64   `json:"tid"`
+	Type   string  `json:"type"`
+}
+
 func main() {
 	runtime.GOMAXPROCS(2)
 
 	request := requests.HTTPRequest{
 		BaseURL:    "https://www.mercadobitcoin.net/api/BTC/",
 		Method:     "GET",
-		MaxTimeout: 300 * time.Millisecond,
+		MaxTimeout: 2 * time.Second,
 	}
 
 	url := "trades"
 
 	ctx := context.TODO()
 
-	data, err := request.MakeRequest(ctx, url)
+	res, err := request.MakeRequest(ctx, url)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	fmt.Println(string(data))
+	var bitcoinsData []data
+
+	err = json.Unmarshal(res, &bitcoinsData)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(bitcoinsData)
 }
